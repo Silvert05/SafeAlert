@@ -3,6 +3,7 @@ import '../models/alert_model.dart';
 import '../models/contact_model.dart';
 import '../services/firestore_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import 'package:uuid/uuid.dart';
 
 class AlertProvider with ChangeNotifier {
@@ -26,6 +27,11 @@ class AlertProvider with ChangeNotifier {
 
   Future<void> sendAlert() async {
     try {
+      // Verificar que haya contactos registrados antes de enviar alerta
+      if (_contacts.isEmpty) {
+        throw Exception('No hay contactos registrados. Agregue al menos un contacto antes de enviar una alerta.');
+      }
+
       final position = await _locationService.getCurrentLocation();
 
       final alert = AlertModel(
@@ -39,6 +45,9 @@ class AlertProvider with ChangeNotifier {
       final service = FirestoreService();
       await service.addAlert(alert);
       await loadAlerts();
+
+      // Enviar notificaciones a contactos
+      await NotificationService.sendAlertNotification(userId, position.latitude, position.longitude);
     } catch (e) {
       debugPrint('Error al enviar alerta: $e');
       rethrow;
@@ -55,5 +64,11 @@ class AlertProvider with ChangeNotifier {
     final service = FirestoreService();
     _alerts = await service.getAlerts(userId);
     notifyListeners();
+  }
+
+  Future<void> deleteContact(String contactId) async {
+    final service = FirestoreService();
+    await service.deleteContact(userId, contactId);
+    await loadContacts();
   }
 }
