@@ -14,7 +14,7 @@ class AlertProvider with ChangeNotifier {
   List<AlertModel> _alerts = [];
 
   AlertProvider({required this.userId})
-      : _firestore = FirestoreService();
+      : _firestore = FirestoreService(); // TODO: Remove if not used
 
   List<ContactModel> get contacts => _contacts;
   List<AlertModel> get alerts => _alerts;
@@ -25,7 +25,7 @@ class AlertProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> sendAlert() async {
+  Future<void> sendAlert({String type = 'Emergencia'}) async {
     try {
       // Verificar que haya contactos registrados antes de enviar alerta
       if (_contacts.isEmpty) {
@@ -40,6 +40,7 @@ class AlertProvider with ChangeNotifier {
         latitude: position.latitude,
         longitude: position.longitude,
         timestamp: DateTime.now(),
+        type: type,
       );
 
       final service = FirestoreService();
@@ -47,7 +48,7 @@ class AlertProvider with ChangeNotifier {
       await loadAlerts();
 
       // Enviar notificaciones a contactos
-      await NotificationService.sendAlertNotification(userId, position.latitude, position.longitude);
+      await NotificationService.sendAlertNotification(userId, position.latitude, position.longitude, alert.id);
     } catch (e) {
       debugPrint('Error al enviar alerta: $e');
       rethrow;
@@ -64,6 +65,18 @@ class AlertProvider with ChangeNotifier {
     final service = FirestoreService();
     _alerts = await service.getAlerts(userId);
     notifyListeners();
+  }
+
+  // Método para actualizar el estado de recepción de una alerta
+  Future<void> updateAlertReceipt(String alertId, String contactId, bool received) async {
+    try {
+      final service = FirestoreService();
+      await service.updateAlertReceipt(alertId, contactId, received);
+      await loadAlerts(); // Recargar alertas para reflejar cambios
+    } catch (e) {
+      debugPrint('Error al actualizar receipt: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteContact(String contactId) async {

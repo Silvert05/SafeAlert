@@ -38,5 +38,18 @@ class FirestoreService {
     });
   }
 
+  Future<void> updateAlertReceipt(String alertId, String contactId, bool received) async {
+    final alertRef = _db.collection('alerts').doc(alertId);
+    final alertDoc = await alertRef.get();
+
+    if (alertDoc.exists) {
+      final data = alertDoc.data()!;
+      final currentReceipts = Map<String, bool>.from(data['contactReceipts'] ?? {});
+      currentReceipts[contactId] = received;
+
+      await alertRef.update({'contactReceipts': currentReceipts});
+    }
+  }
+
   // Métodos estáticos eliminados para evitar conflictos
 }
