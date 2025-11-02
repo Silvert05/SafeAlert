@@ -5,8 +5,43 @@ import '../models/contact_model.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // === CONTACTOS ===
+  Future<void> addContact(String userId, ContactModel contact) async {
+    await _db
+        .collection('users')
+        .doc(userId)
+        .collection('contacts')
+        .doc(contact.id)
+        .set(contact.toMap());
+  }
+
+  Future<List<ContactModel>> getContacts(String userId) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(userId)
+        .collection('contacts')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => ContactModel.fromMap(doc.data()))
+        .toList();
+  }
+
+  Future<void> deleteContact(String userId, String contactId) async {
+    await _db
+        .collection('users')
+        .doc(userId)
+        .collection('contacts')
+        .doc(contactId)
+        .delete();
+  }
+
+  // === ALERTAS ===
   Future<void> addAlert(AlertModel alert) async {
-    await _db.collection('alerts').doc(alert.id).set(alert.toMap());
+    await _db
+        .collection('alerts') // ✅ Colección principal (no dentro del user)
+        .doc(alert.id)
+        .set(alert.toMap());
   }
 
   Future<List<AlertModel>> getAlerts(String userId) async {
@@ -15,41 +50,22 @@ class FirestoreService {
         .where('userId', isEqualTo: userId)
         .orderBy('timestamp', descending: true)
         .get();
-    return snapshot.docs.map((doc) => AlertModel.fromMap(doc.data())).toList();
+
+    return snapshot.docs
+        .map((doc) => AlertModel.fromMap(doc.data()))
+        .toList();
   }
 
-  Future<void> addContact(String userId, ContactModel contact) async {
-    await _db.collection('contacts').doc(contact.id).set(contact.toMap()..['userId'] = userId);
-  }
-
-  Future<List<ContactModel>> getContacts(String userId) async {
-    final snapshot = await _db.collection('contacts').where('userId', isEqualTo: userId).get();
-    return snapshot.docs.map((doc) => ContactModel.fromMap(doc.data()..['id'] = doc.id)).toList();
-  }
-
-  Future<void> deleteContact(String userId, String contactId) async {
-    await _db.collection('contacts').doc(contactId).delete();
-  }
-
-  Future<void> updateUser(String userId, String name, int alertTime) async {
-    await _db.collection('users').doc(userId).update({
-      'name': name,
-      'alertTime': alertTime,
+  Future<void> updateAlertReceipt(
+      String alertId, String contactId, bool received) async {
+    await _db.collection('alerts').doc(alertId).update({
+      'contactReceipts.$contactId': received,
     });
   }
 
-  Future<void> updateAlertReceipt(String alertId, String contactId, bool received) async {
-    final alertRef = _db.collection('alerts').doc(alertId);
-    final alertDoc = await alertRef.get();
-
-    if (alertDoc.exists) {
-      final data = alertDoc.data()!;
-      final currentReceipts = Map<String, bool>.from(data['contactReceipts'] ?? {});
-      currentReceipts[contactId] = received;
-
-      await alertRef.update({'contactReceipts': currentReceipts});
-    }
+  Future<void> updateAlertStatus(String alertId, AlertStatus status) async {
+    await _db.collection('alerts').doc(alertId).update({
+      'status': status.name,
+    });
   }
-
-  // Métodos estáticos eliminados para evitar conflictos
 }

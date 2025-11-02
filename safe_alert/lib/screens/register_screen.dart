@@ -18,7 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-  
+
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _heartbeatController;
@@ -32,37 +32,37 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   static const Color primaryRed = Color(0xFFFF3B30);
   static const Color accentOrange = Color(0xFFFF9500);
   static const Color cardBackground = Color(0xFF2C2C2E);
+  static const Color successGreen = Color(0xFF34C759);
+  static const Color accentBlue = Color(0xFF00A8FF);
 
   @override
   void initState() {
     super.initState();
-    
+
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
 
-    // Animación de latido del corazón
     _heartbeatController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
 
-    // Animación de latido (como un corazón)
     _heartbeatAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 25),
       TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 25),
@@ -73,7 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       parent: _heartbeatController,
       curve: Curves.easeInOut,
     ));
-    
+
     _fadeController.forward();
     _slideController.forward();
     _heartbeatController.repeat();
@@ -91,28 +91,226 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     super.dispose();
   }
 
+  void _showAlertDialog({
+    required String title,
+    required String message,
+    required Color color,
+    IconData icon = Icons.info_outlined,
+    VoidCallback? onConfirm,
+    bool isAutomatic = false,
+    int durationSeconds = 2,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [cardBackground, cardBackground.withOpacity(0.95)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icono con fondo
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.2),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Título
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+
+              // Mensaje
+              Text(
+                message,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              // Solo mostrar botón si NO es automática
+              if (!isAutomatic) ...[
+                const SizedBox(height: 28),
+
+                // Botón de confirmación
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.8)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onConfirm?.call();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Entendido',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Si es automática, cierra después del tiempo especificado
+    if (isAutomatic) {
+      Future.delayed(Duration(seconds: durationSeconds), () {
+        if (mounted) {
+          Navigator.pop(context);
+          onConfirm?.call();
+        }
+      });
+    }
+  }
+
   void _register() async {
-    if (_name.text.isEmpty || _email.text.isEmpty || 
-        _password.text.isEmpty || _confirmPassword.text.isEmpty) {
-      _showSnackBar('Por favor completa todos los campos', primaryRed);
+    // Validación 1: Campos vacíos
+    if (_name.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor ingresa tu nombre completo',
+        color: primaryRed,
+        icon: Icons.person_outline,
+        isAutomatic: false,
+      );
       return;
     }
 
+    if (_email.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor ingresa tu correo electrónico',
+        color: primaryRed,
+        icon: Icons.email_outlined,
+        isAutomatic: false,
+      );
+      return;
+    }
+
+    if (_password.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor ingresa una contraseña',
+        color: primaryRed,
+        icon: Icons.lock_outline,
+        isAutomatic: false,
+      );
+      return;
+    }
+
+    if (_confirmPassword.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor confirma tu contraseña',
+        color: primaryRed,
+        icon: Icons.lock_outline,
+        isAutomatic: false,
+      );
+      return;
+    }
+
+    // Validación 2: Contraseñas no coinciden
     if (_password.text != _confirmPassword.text) {
-      _showSnackBar('Las contraseñas no coinciden', primaryRed);
+      _showAlertDialog(
+        title: 'Contraseñas No Coinciden',
+        message: 'Las contraseñas ingresadas no son iguales. Por favor verifica.',
+        color: primaryRed,
+        icon: Icons.abc_outlined,
+        isAutomatic: false,
+      );
       return;
     }
 
+    // Validación 3: Contraseña muy corta
     if (_password.text.length < 6) {
-      _showSnackBar('La contraseña debe tener al menos 6 caracteres', primaryRed);
+      _showAlertDialog(
+        title: 'Contraseña Débil',
+        message: 'La contraseña debe tener al menos 6 caracteres para tu seguridad.',
+        color: accentOrange,
+        icon: Icons.security,
+        isAutomatic: false,
+      );
       return;
     }
 
+    // Validación 4: Términos no aceptados
     if (!_acceptTerms) {
-      _showSnackBar('Debes aceptar los términos y condiciones', primaryRed);
+      _showAlertDialog(
+        title: 'Términos No Aceptados',
+        message: 'Debes aceptar los términos y condiciones para continuar.',
+        color: primaryRed,
+        icon: Icons.assignment_outlined,
+        isAutomatic: false,
+      );
       return;
     }
 
+    // Registrar
     setState(() => _loading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final success = await auth.register(_name.text, _email.text, _password.text);
@@ -120,25 +318,31 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     if (success) {
       await auth.logout();
       setState(() => _loading = false);
-      _showSnackBar('¡Cuenta creada exitosamente!', const Color(0xFF34C759));
-      await Future.delayed(const Duration(seconds: 1));
-      Navigator.pushReplacementNamed(context, '/login');
+
+      // Éxito - Automática
+      _showAlertDialog(
+        title: '¡Cuenta Creada!',
+        message: 'Tu cuenta se ha creado exitosamente. Ahora inicia sesión con tus credenciales.',
+        color: successGreen,
+        icon: Icons.check_circle,
+        isAutomatic: true,
+        durationSeconds: 2,
+        onConfirm: () {
+          Navigator.pushReplacementNamed(context, '/login');
+        },
+      );
     } else {
       setState(() => _loading = false);
-      _showSnackBar('Error al registrar usuario', primaryRed);
-    }
-  }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      // Error en el registro (con botón)
+      _showAlertDialog(
+        title: 'Error en el Registro',
+        message: 'No pudimos crear tu cuenta. Verifica que el correo no esté registrado.',
+        color: primaryRed,
+        icon: Icons.error_outline,
+        isAutomatic: false,
+      );
+    }
   }
 
   @override
@@ -178,9 +382,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           padding: const EdgeInsets.all(12),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Logo con animación de latido
                       Center(
                         child: AnimatedBuilder(
@@ -216,9 +420,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           },
                         ),
                       ),
-                      
+
                       const SizedBox(height: 30),
-                      
+
                       // Título
                       const Center(
                         child: Text(
@@ -231,9 +435,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 8),
-                      
+
                       // Subtítulo
                       Center(
                         child: Text(
@@ -245,9 +449,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 40),
-                      
+
                       // Campo Nombre
                       _buildInputField(
                         controller: _name,
@@ -255,9 +459,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         icon: Icons.person_outline,
                         keyboardType: TextInputType.name,
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Campo Email
                       _buildInputField(
                         controller: _email,
@@ -265,9 +469,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Campo Contraseña
                       _buildPasswordField(
                         controller: _password,
@@ -275,9 +479,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         obscure: _obscurePassword,
                         onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Campo Confirmar Contraseña
                       _buildPasswordField(
                         controller: _confirmPassword,
@@ -285,9 +489,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         obscure: _obscureConfirmPassword,
                         onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Checkbox de términos
                       Row(
                         children: [
@@ -327,14 +531,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 30),
-                      
+
                       // Botón de Registro
                       _buildRegisterButton(),
-                      
+
                       const SizedBox(height: 25),
-                      
+
                       // Texto de login
                       Center(
                         child: Row(
@@ -361,7 +565,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
                     ],
                   ),

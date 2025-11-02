@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   static const Color primaryRed = Color(0xFFFF3B30);
   static const Color accentOrange = Color(0xFFFF9500);
   static const Color cardBackground = Color(0xFF2C2C2E);
+  static const Color successGreen = Color(0xFF34C759);
 
   @override
   void initState() {
@@ -83,9 +84,177 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
+  void _showAlertDialog({
+    required String title,
+    required String message,
+    required Color color,
+    IconData icon = Icons.info_outlined,
+    VoidCallback? onConfirm,
+    bool isAutomatic = false,
+    int durationSeconds = 2,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [cardBackground, cardBackground.withOpacity(0.95)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icono con fondo
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.2),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Título
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+
+              // Mensaje
+              Text(
+                message,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              // Solo mostrar botón si NO es automática
+              if (!isAutomatic) ...[
+                const SizedBox(height: 28),
+
+                // Botón de confirmación
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.8)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onConfirm?.call();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Entendido',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Si es automática, cierra después del tiempo especificado
+    if (isAutomatic) {
+      Future.delayed(Duration(seconds: durationSeconds), () {
+        if (mounted) {
+          Navigator.pop(context);
+          onConfirm?.call();
+        }
+      });
+    }
+  }
+
   void _login() async {
-    if (_email.text.isEmpty || _password.text.isEmpty) {
-      _showSnackBar('Por favor ingresa tu correo y contraseña', primaryRed);
+    // Validación 1: Email vacío
+    if (_email.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor ingresa tu correo electrónico',
+        color: primaryRed,
+        icon: Icons.email_outlined,
+        isAutomatic: false,
+      );
+      return;
+    }
+
+    // Validación 2: Contraseña vacía
+    if (_password.text.isEmpty) {
+      _showAlertDialog(
+        title: 'Campo Vacío',
+        message: 'Por favor ingresa tu contraseña',
+        color: primaryRed,
+        icon: Icons.lock_outline,
+        isAutomatic: false,
+      );
+      return;
+    }
+
+    // Validación 3: Email inválido (básica)
+    if (!_email.text.contains('@')) {
+      _showAlertDialog(
+        title: 'Email Inválido',
+        message: 'Por favor ingresa un correo electrónico válido',
+        color: accentOrange,
+        icon: Icons.mail_outline,
+        isAutomatic: false,
+      );
       return;
     }
 
@@ -95,24 +264,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     if (success) {
       setState(() => _loading = false);
-      _showSnackBar('Inicio de sesión exitoso', const Color(0xFF34C759));
-      Navigator.pushReplacementNamed(context, '/home');
+
+      // Éxito - Automática
+      _showAlertDialog(
+        title: '¡Bienvenido!',
+        message: 'Tu sesión se inició correctamente. Accediendo a tu cuenta...',
+        color: successGreen,
+        icon: Icons.check_circle,
+        isAutomatic: true,
+        durationSeconds: 2,
+        onConfirm: () {
+          Navigator.pushReplacementNamed(context, '/home');
+        },
+      );
     } else {
       setState(() => _loading = false);
-      _showSnackBar('Credenciales incorrectas', primaryRed);
-    }
-  }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      // Error - Credenciales incorrectas (con botón)
+      _showAlertDialog(
+        title: 'Credenciales Incorrectas',
+        message: 'El correo o contraseña que ingresaste no son válidos. Intenta de nuevo.',
+        color: primaryRed,
+        icon: Icons.error_outline,
+        isAutomatic: false,
+      );
+    }
   }
 
   @override

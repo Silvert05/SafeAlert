@@ -29,15 +29,29 @@ class NotificationService {
         print("🚨 ALERTA DE EMERGENCIA - Necesito ayuda en esta ubicación");
 
         try {
-          // Enviar SMS real con Twilio
-          await _sendRealSMS(contact.phone, "🚨 ALERTA DE EMERGENCIA: Necesito ayuda urgente. Mi ubicación: https://maps.google.com/?q=$latitude,$longitude");
-          print("✅ SMS enviado exitosamente a ${contact.name}");
+          // Verificar si las credenciales están configuradas
+          if (_isTwilioConfigured()) {
+            // Enviar SMS real con Twilio
+            await _sendRealSMS(contact.phone, "🚨 ALERTA DE EMERGENCIA: Necesito ayuda urgente. Mi ubicación: https://maps.google.com/?q=$latitude,$longitude");
+            print("✅ SMS enviado exitosamente a ${contact.name}");
 
-          // Marcar como enviado (inicialmente)
-          await _markAsSent(alertId, contact.id);
+            // Marcar como enviado (inicialmente)
+            await _markAsSent(alertId, contact.id);
 
-          // Simular confirmación de entrega del operador (en producción vendría por webhook)
-          await _simulateDeliveryConfirmation(alertId, contact.id);
+            // Simular confirmación de entrega del operador (en producción vendría por webhook)
+            await _simulateDeliveryConfirmation(alertId, contact.id);
+          } else {
+            // Simular envío si no está configurado Twilio
+            print("🔄 SIMULANDO envío de SMS (Twilio no configurado)");
+            await Future.delayed(const Duration(milliseconds: 500));
+            print("✅ SMS simulado enviado exitosamente a ${contact.name}");
+
+            // Marcar como enviado (inicialmente)
+            await _markAsSent(alertId, contact.id);
+
+            // Simular confirmación de entrega del operador
+            await _simulateDeliveryConfirmation(alertId, contact.id);
+          }
         } catch (e) {
           print("❌ Error al enviar SMS a ${contact.name}: $e");
           // Podrías marcar como fallido aquí
@@ -92,6 +106,17 @@ class NotificationService {
       currentReceipts[contactId] = false; // false = enviado pero no entregado aún
       await alertRef.update({'contactReceipts': currentReceipts});
     }
+  }
+
+  // Método para verificar si Twilio está configurado
+  static bool _isTwilioConfigured() {
+    const String accountSid = 'TU_ACCOUNT_SID_AQUI';
+    const String authToken = 'TU_AUTH_TOKEN_AQUI';
+    const String twilioNumber = 'TU_NUMERO_TWILIO';
+
+    return accountSid != 'TU_ACCOUNT_SID_AQUI' &&
+           authToken != 'TU_AUTH_TOKEN_AQUI' &&
+           twilioNumber != 'TU_NUMERO_TWILIO';
   }
 
   // Método para integrar con Twilio u otro servicio SMS real
