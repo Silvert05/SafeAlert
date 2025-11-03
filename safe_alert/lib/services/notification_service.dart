@@ -22,8 +22,8 @@ class NotificationService {
         return;
       }
 
-      // Enviar notificaciones reales usando Twilio
-      for (final contact in contacts) {
+      // Enviar notificaciones reales usando Twilio (paralelizado para mayor velocidad)
+      final notificationFutures = contacts.map((contact) async {
         print("📤 ENVIANDO SMS a ${contact.name} (${contact.phone})");
         print("📍 Ubicación: $latitude, $longitude");
         print("🚨 ALERTA DE EMERGENCIA - Necesito ayuda en esta ubicación");
@@ -41,22 +41,25 @@ class NotificationService {
             // Simular confirmación de entrega del operador (en producción vendría por webhook)
             await _simulateDeliveryConfirmation(alertId, contact.id);
           } else {
-            // Simular envío si no está configurado Twilio
+            // Simular envío si no está configurado Twilio (reducido a 200ms)
             print("🔄 SIMULANDO envío de SMS (Twilio no configurado)");
-            await Future.delayed(const Duration(milliseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 200));
             print("✅ SMS simulado enviado exitosamente a ${contact.name}");
 
             // Marcar como enviado (inicialmente)
             await _markAsSent(alertId, contact.id);
 
-            // Simular confirmación de entrega del operador
+            // Simular confirmación de entrega del operador (reducido a 1-2 segundos)
             await _simulateDeliveryConfirmation(alertId, contact.id);
           }
         } catch (e) {
           print("❌ Error al enviar SMS a ${contact.name}: $e");
           // Podrías marcar como fallido aquí
         }
-      }
+      });
+
+      // Ejecutar todas las notificaciones en paralelo
+      await Future.wait(notificationFutures);
 
       print("🎯 Notificación enviada a ${contacts.length} contactos!");
     } catch (e) {
@@ -67,8 +70,8 @@ class NotificationService {
 
   static Future<void> _simulateDeliveryConfirmation(String alertId, String contactId) async {
     try {
-      // Simular tiempo de entrega del operador (2-5 segundos)
-      final deliveryTime = Duration(seconds: 2 + (contactId.hashCode % 3)); // Tiempo variable
+      // Simular tiempo de entrega del operador (1-2 segundos, reducido)
+      final deliveryTime = Duration(seconds: 1 + (contactId.hashCode % 1)); // Tiempo variable reducido
       await Future.delayed(deliveryTime);
 
       // Obtener la alerta actual

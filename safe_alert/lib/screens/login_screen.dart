@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../screens/SplashScreenLogin.dart'; // 👈 Importa aquí
+import '../screens/main_navigation_screen.dart'; // 👈 Importa MainNavigationScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -265,18 +267,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     if (success) {
       setState(() => _loading = false);
 
-      // Éxito - Automática
-      _showAlertDialog(
-        title: '¡Bienvenido!',
-        message: 'Tu sesión se inició correctamente. Accediendo a tu cuenta...',
-        color: successGreen,
-        icon: Icons.check_circle,
-        isAutomatic: true,
-        durationSeconds: 2,
-        onConfirm: () {
-          Navigator.pushReplacementNamed(context, '/home');
-        },
-      );
+      // ✨ ÉXITO - Mostrar SplashScreenLogin con animación
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => SplashScreenLogin(
+              nextScreen: const MainNavigationScreen(),
+            ),
+          ),
+        );
+      }
     } else {
       setState(() => _loading = false);
 
@@ -343,7 +343,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   ],
                                 ),
                                 child: const Icon(
-                                  Icons.warning_amber_rounded,
+                                  Icons.security,
                                   size: 50,
                                   color: Colors.white,
                                 ),

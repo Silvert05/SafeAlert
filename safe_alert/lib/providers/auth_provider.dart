@@ -5,6 +5,14 @@ class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? user;
 
+  AuthProvider() {
+    // Escuchar cambios en el estado de autenticación
+    _auth.authStateChanges().listen((User? user) {
+      this.user = user;
+      notifyListeners();
+    });
+  }
+
   String get userName => user?.displayName ?? '';
   String get userEmail => user?.email ?? '';
 

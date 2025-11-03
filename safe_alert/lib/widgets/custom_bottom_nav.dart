@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -10,98 +11,123 @@ class CustomBottomNav extends StatelessWidget {
     required this.onTap,
   });
 
-  static Color getBackgroundColor(BuildContext context) =>
-      Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? const Color(0xFF1C1C1E);
   static const Color primaryRed = Color(0xFFFF3B30);
+  static const Color accentBlue = Color(0xFF00A8FF);
   static const Color inactiveColor = Color(0xFF8E8E93);
+  static const Color darkBg = Color(0xFF1C1C1E);
+  static const Color darkSecondary = Color(0xFF2C2C2E);
+  static const Color lightBg = Color(0xFFF5F5F7);
+  static const Color lightCard = Color(0xFFFFFFFF);
+  
+
+  // Colores para cada botón
+  static const List<Color> itemColors = [primaryRed, accentBlue, primaryRed, accentBlue];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: getBackgroundColor(context),
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-            width: 0.5,
-          ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return CurvedNavigationBar(
+      index: currentIndex,
+      height: 75,
+      // Items con colores fijos (no cambian)
+      items: <Widget>[
+        _buildNavItem(
+          icon: Icons.sos_rounded,
+          label: 'SOS',
+          isActive: currentIndex == 0,
+          color: primaryRed,
+          isDark: isDark,
         ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Inicio',
-                index: 0,
-              ),
-              _buildNavItem(
-                icon: Icons.contacts_outlined,
-                activeIcon: Icons.contacts,
-                label: 'Contactos',
-                index: 1,
-              ),
-              _buildNavItem(
-                icon: Icons.history_outlined,
-                activeIcon: Icons.history,
-                label: 'Historial',
-                index: 2,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Perfil',
-                index: 3,
-              ),
-            ],
-          ),
+        _buildNavItem(
+          icon: Icons.contacts_rounded,
+          label: 'Contactos',
+          isActive: currentIndex == 1,
+          color: accentBlue,
+          isDark: isDark,
         ),
-      ),
+        _buildNavItem(
+          icon: Icons.history_rounded,
+          label: 'Historial',
+          isActive: currentIndex == 2,
+          color: primaryRed,
+          isDark: isDark,
+        ),
+        _buildNavItem(
+          icon: Icons.person_rounded,
+          label: 'Perfil',
+          isActive: currentIndex == 3,
+          color: accentBlue,
+          isDark: isDark,
+        ),
+      ],
+      // Colores principales con curvatura elegante
+      color: isDark ? darkSecondary : const Color.fromARGB(255, 65, 63, 63),
+      buttonBackgroundColor: isDark ? darkSecondary : lightCard,
+      backgroundColor: Colors.transparent,
+      animationCurve: Curves.easeInOut,
+      animationDuration: const Duration(milliseconds: 500),
+      onTap: onTap,
     );
   }
 
-  Widget _buildNavItem({
+  static Widget _buildNavItem({
     required IconData icon,
-    required IconData activeIcon,
     required String label,
-    required int index,
+    required bool isActive,
+    required Color color,
+    required bool isDark,
   }) {
-    final isActive = currentIndex == index;
-
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onTap(index),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isActive ? activeIcon : icon,
-                  color: isActive ? primaryRed : inactiveColor,
-                  size: 26,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isActive ? primaryRed : inactiveColor,
-                    fontSize: 11,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-              ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Contenedor con brillo suave
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Gradiente sutil - menos opaco
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isActive
+                  ? [
+                      color.withOpacity(0.15),
+                      color.withOpacity(0.05),
+                    ]
+                  : [
+                      Colors.transparent,
+                      Colors.transparent,
+                    ],
+            ),
+            // Borde elegante solo si está activo
+            border: Border.all(
+              color: isActive
+                  ? color.withOpacity(isDark ? 0.35 : 0.25)
+                  : Colors.transparent,
+              width: 1.5,
             ),
           ),
+          child: Icon(
+            icon,
+            size: 28,
+            color: isActive ? color : inactiveColor,
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        // Label elegante
+        Text(
+          label,
+          style: TextStyle(
+            color: isActive ? color : inactiveColor,
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
     );
   }
 }

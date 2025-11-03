@@ -80,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Redirigir después de 3 segundos
     Timer(
-      const Duration(seconds: 3),
+      const Duration(seconds: 7),
       () {
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/login');

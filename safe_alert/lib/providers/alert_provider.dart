@@ -39,8 +39,8 @@ class AlertProvider with ChangeNotifier {
         );
       }
 
-      // Simular posibilidad de fallo (20% de probabilidad)
-      if (DateTime.now().millisecondsSinceEpoch % 5 == 0) {
+      // Simular posibilidad de fallo (10% de probabilidad, reducido)
+      if (DateTime.now().millisecondsSinceEpoch % 10 == 0) {
         throw Exception(
           'Error de conexión. Verifique su conexión a internet e intente nuevamente.',
         );
@@ -63,15 +63,19 @@ class AlertProvider with ChangeNotifier {
       notifyListeners();
 
       final service = FirestoreService();
-      await service.addAlert(alert);
 
-      // Enviar notificaciones a contactos
-      await NotificationService.sendAlertNotification(
-        userId,
-        position.latitude,
-        position.longitude,
-        alert.id,
-      );
+      // Paralelizar operaciones para mayor velocidad
+      final futures = [
+        service.addAlert(alert),
+        NotificationService.sendAlertNotification(
+          userId,
+          position.latitude,
+          position.longitude,
+          alert.id,
+        ),
+      ];
+
+      await Future.wait(futures);
 
       // Actualizar estado a "enviado" cuando se complete exitosamente
       final sentAlert = alert.copyWith(status: AlertStatus.sent);
