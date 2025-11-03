@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -33,7 +34,6 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   static const Color accentOrange = Color(0xFFFF9500);
   static const Color cardBackground = Color(0xFF2C2C2E);
   static const Color successGreen = Color(0xFF34C759);
-  static const Color accentBlue = Color(0xFF00A8FF);
 
   @override
   void initState() {
@@ -97,22 +97,21 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required Color color,
     IconData icon = Icons.info_outlined,
     VoidCallback? onConfirm,
-    bool isAutomatic = false,
+    bool isAutoClose = false,
     int durationSeconds = 2,
   }) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: !isAutoClose,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
             color: cardBackground,
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [cardBackground, cardBackground.withOpacity(0.95)],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
@@ -126,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Icono con fondo
+              // Icono animado
               Container(
                 width: 80,
                 height: 80,
@@ -134,11 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                   shape: BoxShape.circle,
                   color: color.withOpacity(0.2),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 40,
-                ),
+                child: Icon(icon, color: color, size: 40),
               ),
               const SizedBox(height: 20),
 
@@ -147,9 +142,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -161,31 +155,19 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.7),
                   fontSize: 15,
-                  fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,
               ),
-              // Solo mostrar botón si NO es automática
-              if (!isAutomatic) ...[
-                const SizedBox(height: 28),
 
-                // Botón de confirmación
+              if (!isAutoClose) ...[
+                const SizedBox(height: 24),
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [color, color.withOpacity(0.8)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: ElevatedButton(
                     onPressed: () {
@@ -217,10 +199,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       ),
     );
 
-    // Si es automática, cierra después del tiempo especificado
-    if (isAutomatic) {
+    if (isAutoClose) {
       Future.delayed(Duration(seconds: durationSeconds), () {
-        if (mounted) {
+        if (mounted && Navigator.canPop(context)) {
           Navigator.pop(context);
           onConfirm?.call();
         }
@@ -228,119 +209,203 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     }
   }
 
+  // Validar nombre (solo letras y espacios, mínimo 3 caracteres)
+  bool _isValidName(String name) {
+    if (name.trim().isEmpty) return false;
+    if (name.trim().length < 3) return false;
+    // Solo letras, espacios y acentos
+    final nameRegex = RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$');
+    return nameRegex.hasMatch(name.trim());
+  }
+
+  // Validar email (formato correcto)
+  bool _isValidEmail(String email) {
+    if (email.trim().isEmpty) return false;
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return emailRegex.hasMatch(email.trim());
+  }
+
+  // Validar contraseña (mínimo 6 caracteres, al menos 1 letra y 1 número)
+  bool _isValidPassword(String password) {
+    if (password.isEmpty) return false;
+    if (password.length < 6) return false;
+    // Al menos una letra y un número
+    final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    return hasLetter && hasNumber;
+  }
+
   void _register() async {
-    // Validación 1: Campos vacíos
-    if (_name.text.isEmpty) {
+    // 1. Validar nombre
+    if (_name.text.trim().isEmpty) {
       _showAlertDialog(
-        title: 'Campo Vacío',
+        title: '❌ Campo Vacío',
         message: 'Por favor ingresa tu nombre completo',
         color: primaryRed,
         icon: Icons.person_outline,
-        isAutomatic: false,
       );
       return;
     }
 
-    if (_email.text.isEmpty) {
+    if (_name.text.trim().length < 3) {
       _showAlertDialog(
-        title: 'Campo Vacío',
+        title: '⚠️ Nombre Muy Corto',
+        message: 'Tu nombre debe tener al menos 3 caracteres',
+        color: accentOrange,
+        icon: Icons.short_text,
+      );
+      return;
+    }
+
+    if (!_isValidName(_name.text)) {
+      _showAlertDialog(
+        title: '⚠️ Nombre Inválido',
+        message: 'El nombre solo puede contener letras y espacios, sin números ni símbolos',
+        color: accentOrange,
+        icon: Icons.abc,
+      );
+      return;
+    }
+
+    // 2. Validar email
+    if (_email.text.trim().isEmpty) {
+      _showAlertDialog(
+        title: '❌ Campo Vacío',
         message: 'Por favor ingresa tu correo electrónico',
         color: primaryRed,
         icon: Icons.email_outlined,
-        isAutomatic: false,
       );
       return;
     }
 
+    if (!_email.text.contains('@')) {
+      _showAlertDialog(
+        title: '⚠️ Email Incompleto',
+        message: 'El correo debe contener el símbolo @ (ejemplo: usuario@email.com)',
+        color: accentOrange,
+        icon: Icons.alternate_email,
+      );
+      return;
+    }
+
+    if (!_isValidEmail(_email.text)) {
+      _showAlertDialog(
+        title: '⚠️ Email Inválido',
+        message: 'Por favor ingresa un correo electrónico válido\n(ejemplo: usuario@gmail.com)',
+        color: accentOrange,
+        icon: Icons.email_outlined,
+      );
+      return;
+    }
+
+    // 3. Validar contraseña
     if (_password.text.isEmpty) {
       _showAlertDialog(
-        title: 'Campo Vacío',
+        title: '❌ Campo Vacío',
         message: 'Por favor ingresa una contraseña',
         color: primaryRed,
         icon: Icons.lock_outline,
-        isAutomatic: false,
       );
       return;
     }
 
+    if (_password.text.length < 6) {
+      _showAlertDialog(
+        title: '⚠️ Contraseña Muy Corta',
+        message: 'La contraseña debe tener al menos 6 caracteres para tu seguridad',
+        color: accentOrange,
+        icon: Icons.security,
+      );
+      return;
+    }
+
+    if (!_isValidPassword(_password.text)) {
+      _showAlertDialog(
+        title: '⚠️ Contraseña Débil',
+        message: 'La contraseña debe contener al menos:\n• Una letra (a-z)\n• Un número (0-9)',
+        color: accentOrange,
+        icon: Icons.password,
+      );
+      return;
+    }
+
+    // 4. Validar confirmación de contraseña
     if (_confirmPassword.text.isEmpty) {
       _showAlertDialog(
-        title: 'Campo Vacío',
+        title: '❌ Campo Vacío',
         message: 'Por favor confirma tu contraseña',
         color: primaryRed,
         icon: Icons.lock_outline,
-        isAutomatic: false,
       );
       return;
     }
 
-    // Validación 2: Contraseñas no coinciden
     if (_password.text != _confirmPassword.text) {
       _showAlertDialog(
-        title: 'Contraseñas No Coinciden',
+        title: '⚠️ Contraseñas No Coinciden',
         message: 'Las contraseñas ingresadas no son iguales. Por favor verifica.',
         color: primaryRed,
-        icon: Icons.abc_outlined,
-        isAutomatic: false,
+        icon: Icons.sync_problem,
       );
       return;
     }
 
-    // Validación 3: Contraseña muy corta
-    if (_password.text.length < 6) {
-      _showAlertDialog(
-        title: 'Contraseña Débil',
-        message: 'La contraseña debe tener al menos 6 caracteres para tu seguridad.',
-        color: accentOrange,
-        icon: Icons.security,
-        isAutomatic: false,
-      );
-      return;
-    }
-
-    // Validación 4: Términos no aceptados
+    // 5. Validar términos
     if (!_acceptTerms) {
       _showAlertDialog(
-        title: 'Términos No Aceptados',
-        message: 'Debes aceptar los términos y condiciones para continuar.',
+        title: '⚠️ Términos No Aceptados',
+        message: 'Debes aceptar los términos y condiciones para continuar',
         color: primaryRed,
         icon: Icons.assignment_outlined,
-        isAutomatic: false,
       );
       return;
     }
 
-    // Registrar
+    // 6. Registrar usuario
     setState(() => _loading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final success = await auth.register(_name.text, _email.text, _password.text);
-
-    if (success) {
-      await auth.logout();
-      setState(() => _loading = false);
-
-      // Éxito - Automática
-      _showAlertDialog(
-        title: '¡Cuenta Creada!',
-        message: 'Tu cuenta se ha creado exitosamente. Ahora inicia sesión con tus credenciales.',
-        color: successGreen,
-        icon: Icons.check_circle,
-        isAutomatic: true,
-        durationSeconds: 2,
-        onConfirm: () {
-          Navigator.pushReplacementNamed(context, '/login');
-        },
+    
+    try {
+      final success = await auth.register(
+        _name.text.trim(),
+        _email.text.trim().toLowerCase(),
+        _password.text,
       );
-    } else {
-      setState(() => _loading = false);
 
-      // Error en el registro (con botón)
+      if (success) {
+        await auth.logout();
+        setState(() => _loading = false);
+
+        // Éxito - con cierre automático
+        _showAlertDialog(
+          title: '✅ ¡Cuenta Creada!',
+          message: 'Tu cuenta se ha creado exitosamente. Redirigiendo al inicio de sesión...',
+          color: successGreen,
+          icon: Icons.check_circle,
+          isAutoClose: true,
+          durationSeconds: 2,
+          onConfirm: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+        );
+      } else {
+        setState(() => _loading = false);
+        _showAlertDialog(
+          title: '❌ Error en el Registro',
+          message: 'No pudimos crear tu cuenta. El correo ya podría estar registrado.',
+          color: primaryRed,
+          icon: Icons.error_outline,
+        );
+      }
+    } catch (e) {
+      setState(() => _loading = false);
       _showAlertDialog(
-        title: 'Error en el Registro',
-        message: 'No pudimos crear tu cuenta. Verifica que el correo no esté registrado.',
+        title: '❌ Error de Conexión',
+        message: 'Hubo un problema al crear tu cuenta. Verifica tu conexión a internet.',
         color: primaryRed,
-        icon: Icons.error_outline,
-        isAutomatic: false,
+        icon: Icons.wifi_off,
       );
     }
   }
@@ -452,12 +517,16 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
                       const SizedBox(height: 40),
 
-                      // Campo Nombre
+                      // Campo Nombre (SOLO LETRAS)
                       _buildInputField(
                         controller: _name,
                         label: 'Nombre Completo',
                         icon: Icons.person_outline,
                         keyboardType: TextInputType.name,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]')),
+                          LengthLimitingTextInputFormatter(50),
+                        ],
                       ),
 
                       const SizedBox(height: 16),
@@ -465,9 +534,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       // Campo Email
                       _buildInputField(
                         controller: _email,
-                        label: 'Email',
+                        label: 'Correo Electrónico',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.deny(RegExp(r'\s')), // Sin espacios
+                          LengthLimitingTextInputFormatter(60),
+                        ],
                       ),
 
                       const SizedBox(height: 16),
@@ -478,6 +551,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         label: 'Contraseña',
                         obscure: _obscurePassword,
                         onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(30),
+                        ],
                       ),
 
                       const SizedBox(height: 16),
@@ -488,6 +564,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         label: 'Confirmar Contraseña',
                         obscure: _obscureConfirmPassword,
                         onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(30),
+                        ],
                       ),
 
                       const SizedBox(height: 20),
@@ -583,6 +662,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -596,6 +676,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           labelText: label,
@@ -617,6 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required String label,
     required bool obscure,
     required VoidCallback onToggle,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -630,6 +712,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        inputFormatters: inputFormatters,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           labelText: label,
